@@ -1,9 +1,10 @@
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import SQLAlchemyError
 from uuid import UUID
 from app.database.models.Board import Board as BoardModel
 from app.database.models.ListModel import ListModel
+from app.database.models.BoardUser import BoardUser, InvitationStatus
 from app.repositories.BaseRepo import BaseRepository
 from app.core.exceptions import DataBaseError
 
@@ -13,7 +14,21 @@ class BoardRepository(BaseRepository):
         super().__init__(BoardModel, session)
 
     async def get_user_boards(self, user_id: UUID):
-        stmt = select(BoardModel).where(BoardModel.owner_id == user_id)
+        """Get all boards where user is either the owner or an accepted member"""
+        # Subquery to get board_ids where user is an accepted member
+        accepted_boards_subquery = (
+            select(BoardUser.board_id)
+            .where(BoardUser.user_id == user_id)
+            .where(BoardUser.status == InvitationStatus.ACCEPTED)
+        )
+        
+        # Main query: boards where user is owner OR in the accepted boards list
+        stmt = select(BoardModel).where(
+            or_(
+                BoardModel.owner_id == user_id,
+                BoardModel.id.in_(accepted_boards_subquery)
+            )
+        )
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
@@ -26,10 +41,23 @@ class BoardRepository(BaseRepository):
         return result.scalars().first()
 
     async def get_board_with_details(self, board_id: UUID, user_id: UUID):
+        """Get board with all details if user is owner or accepted member"""
+        # Subquery to check if user is an accepted member
+        accepted_boards_subquery = (
+            select(BoardUser.board_id)
+            .where(BoardUser.user_id == user_id)
+            .where(BoardUser.status == InvitationStatus.ACCEPTED)
+        )
+        
         stmt = (
             select(BoardModel)
             .where(BoardModel.id == board_id)
-            .where(BoardModel.owner_id == user_id)
+            .where(
+                or_(
+                    BoardModel.owner_id == user_id,
+                    BoardModel.id.in_(accepted_boards_subquery)
+                )
+            )
             .options(
                 selectinload(BoardModel.lists).selectinload(ListModel.cards)
             )

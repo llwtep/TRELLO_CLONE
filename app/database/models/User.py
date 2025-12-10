@@ -37,4 +37,7 @@ class UserModel(Base):
     boards: Mapped[List["Board"]] = relationship(
         "Board", back_populates="owner", cascade="all, delete-orphan"
     )
+    board_memberships: Mapped[List["BoardUser"]] = relationship(
+        "BoardUser", foreign_keys="BoardUser.user_id", back_populates="user", cascade="all, delete-orphan"
+    )
 

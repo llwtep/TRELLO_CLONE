@@ -53,11 +53,16 @@ async def websocket_endpoint(
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
-    # Verify Board Access
-    board_service = BoardService(uow)
+    # Verify Board Access (owner or accepted member)
+    from app.services.BoardUserService import BoardUserService
+    board_user_service = BoardUserService(uow)
+    
     try:
-        # Check if board exists and belongs to user
-        await board_service.get_board(owner_id=user.id, board_id=board_id)
+        # Check if user is owner OR has accepted access to board
+        has_access = await board_user_service.check_board_access(board_id, user.id)
+        if not has_access:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
     except Exception:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return

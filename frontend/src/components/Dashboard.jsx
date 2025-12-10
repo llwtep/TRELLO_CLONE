@@ -2,18 +2,21 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Plus, Layout, LogOut, User, Search, Star, Clock } from 'lucide-react';
+import { Plus, Layout, LogOut, Search, Star, Clock, ChevronDown, Bell } from 'lucide-react';
 
 export default function Dashboard() {
     const [boards, setBoards] = useState([]);
     const [newBoardTitle, setNewBoardTitle] = useState('');
     const [isCreating, setIsCreating] = useState(false);
     const [user, setUser] = useState(null);
+    const [invitations, setInvitations] = useState([]);
+    const [showInvitations, setShowInvitations] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
         fetchBoards();
         fetchUser();
+        fetchInvitations();
     }, []);
 
     const fetchUser = async () => {
@@ -52,46 +55,209 @@ export default function Dashboard() {
         navigate('/');
     }
 
-    return (
-        <div className="min-h-screen bg-[#fafbfc] text-[#172b4d]">
+    const fetchInvitations = async () => {
+        try {
+            const res = await axios.get('/boards/invitations/pending');
+            setInvitations(res.data);
+        } catch (err) {
+            console.error('Failed to fetch invitations:', err);
+        }
+    };
 
-            {/* Trello-style Header */}
-            <nav className="bg-gradient-to-r from-[#026aa7] to-[#0079bf] text-white px-4 h-12 flex items-center justify-between shadow-md sticky top-0 z-50">
-                <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2 hover:bg-white/20 px-3 py-1.5 rounded-md cursor-pointer transition-all">
-                        <Layout size={20} />
-                        <span className="font-bold text-lg tracking-tight hidden sm:inline">TrelloClone</span>
+    const respondToInvitation = async (boardId, status) => {
+        try {
+            await axios.post(`/boards/${boardId}/invite/respond`, { status });
+            fetchInvitations(); // Refresh list
+            if (status === 'accepted') {
+                fetchBoards(); // Refresh boards
+            }
+        } catch (err) {
+            alert('Failed to respond to invitation');
+        }
+    };
+
+    const gradients = [
+        'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+        'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+        'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+        'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+        'linear-gradient(135deg, #30cfd0 0%, #330867 100%)',
+    ];
+
+    return (
+        <div style={{ minHeight: '100vh', background: '#fafbfc' }}>
+
+            {/* Modern Header */}
+            <nav style={{
+                background: 'white',
+                borderBottom: '1px solid #e5e7eb',
+                padding: '0 1.5rem',
+                height: '4rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                position: 'sticky',
+                top: 0,
+                zIndex: 50,
+                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.625rem',
+                        cursor: 'pointer'
+                    }}>
+                        <div style={{
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            padding: '0.5rem',
+                            borderRadius: '0.5rem',
+                            display: 'flex'
+                        }}>
+                            <Layout style={{ color: 'white' }} size={20} />
+                        </div>
+                        <span style={{
+                            fontWeight: 700,
+                            fontSize: '1.25rem',
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            backgroundClip: 'text'
+                        }}>TaskFlow</span>
                     </div>
-                    <div className="hidden md:flex items-center gap-2">
-                        <button className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-md text-sm font-semibold transition-all">
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <button style={{
+                            padding: '0.5rem 0.875rem',
+                            background: 'transparent',
+                            borderRadius: '0.375rem',
+                            fontSize: '0.875rem',
+                            fontWeight: 500,
+                            color: '#4b5563',
+                            display: 'none'
+                        }}
+                            onMouseEnter={(e) => e.target.style.background = '#f3f4f6'}
+                            onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                        >
                             Workspaces
-                        </button>
-                        <button className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-md text-sm font-semibold transition-all">
-                            Recent
-                        </button>
-                        <button className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-md text-sm font-semibold transition-all">
-                            Starred
                         </button>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <div className="relative hidden sm:block">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{ position: 'relative', display: 'flex' }}>
+                        <Search style={{
+                            position: 'absolute',
+                            left: '0.75rem',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            color: '#9ca3af',
+                            pointerEvents: 'none'
+                        }} size={16} />
                         <input
-                            className="bg-white/20 hover:bg-white/30 focus:bg-white focus:text-[#172b4d] border-none rounded-md py-1.5 pl-9 pr-3 text-sm placeholder:text-white/80 focus:placeholder:text-gray-400 transition-all w-52 outline-none"
-                            placeholder="Search..."
+                            style={{
+                                background: '#f9fafb',
+                                border: '1px solid #e5e7eb',
+                                borderRadius: '0.5rem',
+                                padding: '0.5rem 0.875rem 0.5rem 2.5rem',
+                                fontSize: '0.875rem',
+                                outline: 'none',
+                                width: '240px',
+                                transition: 'all 0.15s'
+                            }}
+                            placeholder="Search boards..."
+                            onFocus={(e) => {
+                                e.target.style.background = 'white';
+                                e.target.style.borderColor = '#667eea';
+                                e.target.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+                            }}
+                            onBlur={(e) => {
+                                e.target.style.background = '#f9fafb';
+                                e.target.style.borderColor = '#e5e7eb';
+                                e.target.style.boxShadow = 'none';
+                            }}
                         />
-                        <Search className="absolute left-2.5 top-2 text-white/80 pointer-events-none" size={16} />
                     </div>
 
                     {user && (
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center font-bold text-sm uppercase cursor-pointer shadow-md hover:shadow-lg transition-all" title={user.email}>
+                        <div style={{
+                            width: '2rem',
+                            height: '2rem',
+                            borderRadius: '0.5rem',
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 600,
+                            fontSize: '0.875rem',
+                            color: 'white',
+                            cursor: 'pointer',
+                            textTransform: 'uppercase'
+                        }} title={user.email}>
                             {user.username?.substring(0, 2) || user.email?.substring(0, 2)}
                         </div>
                     )}
+
+                    {/* Invitations Bell */}
+                    {invitations.length > 0 && (
+                        <button
+                            onClick={() => setShowInvitations(true)}
+                            style={{
+                                position: 'relative',
+                                color: '#6b7280',
+                                padding: '0.5rem',
+                                borderRadius: '0.375rem',
+                                transition: 'all 0.15s'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.target.style.color = '#111827';
+                                e.target.style.background = '#f3f4f6';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.target.style.color = '#6b7280';
+                                e.target.style.background = 'transparent';
+                            }}
+                            title="Pending Invitations"
+                        >
+                            <Bell size={18} />
+                            <span style={{
+                                position: 'absolute',
+                                top: '2px',
+                                right: '2px',
+                                background: '#ef4444',
+                                color: 'white',
+                                fontSize: '0.625rem',
+                                fontWeight: 700,
+                                borderRadius: '9999px',
+                                minWidth: '16px',
+                                height: '16px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '0 4px'
+                            }}>
+                                {invitations.length}
+                            </span>
+                        </button>
+                    )}
+
                     <button
                         onClick={handleLogout}
-                        className="text-white/90 hover:text-white hover:bg-white/20 p-2 rounded-md transition-all"
+                        style={{
+                            color: '#6b7280',
+                            padding: '0.5rem',
+                            borderRadius: '0.375rem',
+                            transition: 'all 0.15s'
+                        }}
+                        onMouseEnter={(e) => {
+                            e.target.style.color = '#111827';
+                            e.target.style.background = '#f3f4f6';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.target.style.color = '#6b7280';
+                            e.target.style.background = 'transparent';
+                        }}
                         title="Logout"
                     >
                         <LogOut size={18} />
@@ -100,29 +266,62 @@ export default function Dashboard() {
             </nav>
 
             {/* Main Content */}
-            <div className="max-w-7xl mx-auto p-8">
+            <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '3rem 2rem' }}>
 
                 {/* Page Header */}
-                <div className="mb-8">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-md">
-                            <User className="text-white" size={24} />
+                <div style={{ marginBottom: '3rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem' }}>
+                        <div style={{
+                            width: '3.5rem',
+                            height: '3.5rem',
+                            borderRadius: '0.75rem',
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                        }}>
+                            <Layout style={{ color: 'white' }} size={24} />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-bold text-[#172b4d]">Your Workspace</h1>
-                            <p className="text-sm text-[#5e6c84]">{user?.email || 'Loading...'}</p>
+                            <h1 style={{
+                                fontSize: '1.875rem',
+                                fontWeight: 700,
+                                color: '#111827',
+                                margin: 0,
+                                letterSpacing: '-0.025em'
+                            }}>Your Workspace</h1>
+                            <p style={{
+                                fontSize: '0.875rem',
+                                color: '#6b7280',
+                                margin: 0
+                            }}>{user?.email || 'Loading...'}</p>
                         </div>
                     </div>
                 </div>
 
                 {/* Boards Section */}
-                <div className="mb-8">
-                    <div className="flex items-center gap-2 mb-4">
-                        <Star size={18} className="text-[#5e6c84]" />
-                        <h2 className="font-bold text-[#172b4d] text-lg">Your Boards</h2>
+                <div style={{ marginBottom: '3rem' }}>
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        marginBottom: '1.5rem'
+                    }}>
+                        <Star size={18} style={{ color: '#6b7280' }} />
+                        <h2 style={{
+                            fontWeight: 600,
+                            color: '#111827',
+                            fontSize: '1.125rem',
+                            margin: 0
+                        }}>Your Boards</h2>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                        gap: '1.25rem'
+                    }}>
 
                         {boards.map((board, index) => (
                             <motion.div
@@ -130,39 +329,98 @@ export default function Dashboard() {
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: index * 0.05 }}
-                                whileHover={{ y: -4 }}
                                 onClick={() => navigate(`/board/${board.id}`)}
-                                className="group bg-gradient-to-br from-[#0079bf] to-[#026aa7] rounded-lg h-28 p-4 relative cursor-pointer hover:shadow-xl transition-all overflow-hidden"
+                                style={{
+                                    background: gradients[index % gradients.length],
+                                    borderRadius: '0.75rem',
+                                    height: '120px',
+                                    padding: '1.25rem',
+                                    position: 'relative',
+                                    cursor: 'pointer',
+                                    overflow: 'hidden',
+                                    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                                    transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.transform = 'translateY(-4px)';
+                                    e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.15)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                    e.currentTarget.style.boxShadow = '0 1px 3px 0 rgba(0, 0, 0, 0.1)';
+                                }}
                             >
-                                {/* Decorative overlay */}
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all"></div>
+                                <div style={{
+                                    position: 'absolute',
+                                    inset: 0,
+                                    background: 'linear-gradient(to bottom, transparent, rgba(0,0,0,0.1))'
+                                }} />
 
-                                <div className="relative z-10">
-                                    <h3 className="font-bold text-white text-lg truncate mb-2">{board.title}</h3>
-                                    <div className="flex items-center gap-1 text-white/80 text-xs">
+                                <div style={{ position: 'relative', zIndex: 10 }}>
+                                    <h3 style={{
+                                        fontWeight: 600,
+                                        color: 'white',
+                                        fontSize: '1.125rem',
+                                        margin: 0,
+                                        marginBottom: '0.5rem',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                        textShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                                    }}>{board.title}</h3>
+                                    <div style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.375rem',
+                                        color: 'rgba(255,255,255,0.9)',
+                                        fontSize: '0.75rem'
+                                    }}>
                                         <Clock size={12} />
                                         <span>Recently viewed</span>
                                     </div>
                                 </div>
-
-                                {/* Star button */}
-                                <button className="absolute bottom-3 right-3 text-white/60 hover:text-white opacity-0 group-hover:opacity-100 transition-all">
-                                    <Star size={16} />
-                                </button>
                             </motion.div>
                         ))}
 
                         {/* Create New Board Tile */}
                         <motion.div
-                            whileHover={{ y: -4 }}
                             onClick={() => setIsCreating(true)}
-                            className="bg-[#091e420f] hover:bg-[#091e4214] h-28 rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all border-2 border-dashed border-[#091e4226] hover:border-[#0079bf]"
+                            style={{
+                                background: '#f9fafb',
+                                border: '2px dashed #d1d5db',
+                                height: '120px',
+                                borderRadius: '0.75rem',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = '#f3f4f6';
+                                e.currentTarget.style.borderColor = '#667eea';
+                                e.currentTarget.style.transform = 'translateY(-4px)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = '#f9fafb';
+                                e.currentTarget.style.borderColor = '#d1d5db';
+                                e.currentTarget.style.transform = 'translateY(0)';
+                            }}
                         >
                             {isCreating ? (
-                                <form onSubmit={createBoard} className="w-full px-4" onClick={e => e.stopPropagation()}>
+                                <form onSubmit={createBoard} style={{ width: '100%', padding: '1.25rem' }} onClick={e => e.stopPropagation()}>
                                     <input
                                         autoFocus
-                                        className="w-full p-2 text-sm border-2 border-[#0079bf] rounded-md outline-none focus:ring-2 focus:ring-[#0079bf]/30"
+                                        style={{
+                                            width: '100%',
+                                            padding: '0.625rem',
+                                            fontSize: '0.875rem',
+                                            border: '1.5px solid #667eea',
+                                            borderRadius: '0.5rem',
+                                            outline: 'none',
+                                            boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
+                                        }}
                                         placeholder="Enter board title..."
                                         value={newBoardTitle}
                                         onChange={e => setNewBoardTitle(e.target.value)}
@@ -174,46 +432,160 @@ export default function Dashboard() {
                                             }
                                         }}
                                     />
-                                    <button type="submit" className="hidden" />
-                                    <p className="text-xs text-[#5e6c84] mt-2 text-center">Press Enter to create</p>
+                                    <button type="submit" style={{ display: 'none' }} />
+                                    <p style={{
+                                        fontSize: '0.75rem',
+                                        color: '#6b7280',
+                                        marginTop: '0.625rem',
+                                        textAlign: 'center',
+                                        margin: '0.625rem 0 0 0'
+                                    }}>Press Enter to create</p>
                                 </form>
                             ) : (
                                 <>
-                                    <div className="w-10 h-10 rounded-full bg-[#091e4214] flex items-center justify-center mb-2">
-                                        <Plus className="text-[#5e6c84]" size={20} />
+                                    <div style={{
+                                        width: '3rem',
+                                        height: '3rem',
+                                        borderRadius: '9999px',
+                                        background: '#e5e7eb',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        marginBottom: '0.625rem'
+                                    }}>
+                                        <Plus style={{ color: '#6b7280' }} size={20} />
                                     </div>
-                                    <span className="text-[#172b4d] text-sm font-semibold">Create new board</span>
+                                    <span style={{
+                                        color: '#4b5563',
+                                        fontSize: '0.875rem',
+                                        fontWeight: 500
+                                    }}>Create new board</span>
                                 </>
                             )}
                         </motion.div>
                     </div>
                 </div>
-
-                {/* Recently Viewed Section (Optional) */}
-                {boards.length > 0 && (
-                    <div className="mt-12">
-                        <div className="flex items-center gap-2 mb-4">
-                            <Clock size={18} className="text-[#5e6c84]" />
-                            <h2 className="font-bold text-[#172b4d] text-lg">Recently Viewed</h2>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                            {boards.slice(0, 3).map((board) => (
-                                <div
-                                    key={`recent-${board.id}`}
-                                    onClick={() => navigate(`/board/${board.id}`)}
-                                    className="flex items-center gap-3 p-3 bg-white rounded-lg border border-[#dfe1e6] hover:border-[#0079bf] hover:shadow-md cursor-pointer transition-all"
-                                >
-                                    <div className="w-10 h-10 rounded bg-gradient-to-br from-[#0079bf] to-[#026aa7] flex-shrink-0"></div>
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className="font-semibold text-sm text-[#172b4d] truncate">{board.title}</h4>
-                                        <p className="text-xs text-[#5e6c84]">Board</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
             </div>
+
+            {/* Invitations Modal */}
+            {showInvitations && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0, 0, 0, 0.5)',
+                    backdropFilter: 'blur(4px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1000
+                }} onClick={() => setShowInvitations(false)}>
+                    <div style={{
+                        background: 'white',
+                        borderRadius: '1rem',
+                        padding: '1.5rem',
+                        width: '90%',
+                        maxWidth: '500px',
+                        maxHeight: '80vh',
+                        overflowY: 'auto',
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
+                    }} onClick={(e) => e.stopPropagation()}>
+                        <h2 style={{
+                            fontSize: '1.5rem',
+                            fontWeight: 700,
+                            marginBottom: '1rem',
+                            color: '#111827'
+                        }}>Pending Invitations</h2>
+
+                        {invitations.length === 0 ? (
+                            <p style={{ color: '#6b7280', margin: '1rem 0' }}>No pending invitations</p>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                {invitations.map(inv => (
+                                    <div key={inv.id} style={{
+                                        background: '#f9fafb',
+                                        padding: '1rem',
+                                        borderRadius: '0.5rem',
+                                        border: '1px solid #e5e7eb'
+                                    }}>
+                                        <div style={{
+                                            fontSize: '0.875rem',
+                                            color: '#111827',
+                                            marginBottom: '0.5rem',
+                                            fontWeight: 600
+                                        }}>
+                                            Board Invitation
+                                        </div>
+                                        <div style={{
+                                            fontSize: '0.75rem',
+                                            color: '#6b7280',
+                                            marginBottom: '0.75rem'
+                                        }}>
+                                            Board ID: {inv.board_id}
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <button
+                                                onClick={() => respondToInvitation(inv.board_id, 'accepted')}
+                                                style={{
+                                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                                    color: 'white',
+                                                    padding: '0.5rem 1rem',
+                                                    borderRadius: '0.375rem',
+                                                    fontSize: '0.875rem',
+                                                    fontWeight: 600,
+                                                    flex: 1,
+                                                    transition: 'all 0.15s'
+                                                }}
+                                                onMouseEnter={(e) => e.target.style.opacity = '0.9'}
+                                                onMouseLeave={(e) => e.target.style.opacity = '1'}
+                                            >
+                                                Accept
+                                            </button>
+                                            <button
+                                                onClick={() => respondToInvitation(inv.board_id, 'rejected')}
+                                                style={{
+                                                    background: '#ef4444',
+                                                    color: 'white',
+                                                    padding: '0.5rem 1rem',
+                                                    borderRadius: '0.375rem',
+                                                    fontSize: '0.875rem',
+                                                    fontWeight: 600,
+                                                    flex: 1,
+                                                    transition: 'all 0.15s'
+                                                }}
+                                                onMouseEnter={(e) => e.target.style.opacity = '0.9'}
+                                                onMouseLeave={(e) => e.target.style.opacity = '1'}
+                                            >
+                                                Reject
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        <button
+                            onClick={() => setShowInvitations(false)}
+                            style={{
+                                marginTop: '1rem',
+                                width: '100%',
+                                padding: '0.5rem',
+                                borderRadius: '0.375rem',
+                                fontSize: '0.875rem',
+                                fontWeight: 600,
+                                color: '#6b7280',
+                                transition: 'all 0.15s'
+                            }}
+                            onMouseEnter={(e) => e.target.style.background = '#f3f4f6'}
+                            onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

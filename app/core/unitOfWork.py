@@ -4,6 +4,7 @@ from app.repositories.UserRepo import UserRepository
 from app.repositories.BoardRepo import BoardRepository
 from app.repositories.ListRepo import ListRepository
 from app.repositories.CardRepo import CardRepository
+from app.repositories.BoardUserRepository import BoardUserRepository
 
 
 class _UnitOfWork:
@@ -13,6 +14,8 @@ class _UnitOfWork:
         self.board = BoardRepository(session)
         self.list = ListRepository(session)
         self.card = CardRepository(session)
+        self.board_user = BoardUserRepository(session)
+
 
 
 class UnitOfWork:

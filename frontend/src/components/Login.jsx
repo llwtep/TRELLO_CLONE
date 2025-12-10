@@ -33,7 +33,7 @@ export default function Login() {
                     password: formData.password,
                     username: formData.username || "User"
                 });
-                setSuccessMsg("✓ Account created! Please check your email to verify your account.");
+                setSuccessMsg("✓ Account created successfully! You can now log in.");
                 setIsLogin(true);
                 setFormData({ email: '', password: '', username: '' });
             }
@@ -46,24 +46,99 @@ export default function Login() {
     };
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#0079bf] via-[#026aa7] to-[#005a8e] text-[#172b4d] relative overflow-hidden">
+        <div style={{
+            minHeight: '100vh',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+            position: 'relative',
+            overflow: 'hidden'
+        }}>
 
-            {/* Decorative Background Elements */}
-            <div className="absolute top-0 left-0 w-full h-full opacity-10">
-                <div className="absolute top-20 left-10 w-72 h-72 bg-white rounded-full blur-3xl"></div>
-                <div className="absolute bottom-20 right-10 w-96 h-96 bg-white rounded-full blur-3xl"></div>
+            {/* Animated Background Orbs */}
+            <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                opacity: 0.15,
+                pointerEvents: 'none'
+            }}>
+                <motion.div
+                    animate={{
+                        x: [0, 100, 0],
+                        y: [0, -100, 0],
+                    }}
+                    transition={{
+                        duration: 20,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                    }}
+                    style={{
+                        position: 'absolute',
+                        top: '10%',
+                        left: '5%',
+                        width: '300px',
+                        height: '300px',
+                        background: 'white',
+                        borderRadius: '50%',
+                        filter: 'blur(60px)'
+                    }}
+                />
+                <motion.div
+                    animate={{
+                        x: [0, -100, 0],
+                        y: [0, 100, 0],
+                    }}
+                    transition={{
+                        duration: 15,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                    }}
+                    style={{
+                        position: 'absolute',
+                        bottom: '10%',
+                        right: '5%',
+                        width: '400px',
+                        height: '400px',
+                        background: 'white',
+                        borderRadius: '50%',
+                        filter: 'blur(60px)'
+                    }}
+                />
             </div>
 
             {/* Brand Logo */}
             <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mb-8 flex items-center gap-3 relative z-10"
+                style={{
+                    marginBottom: '2rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    position: 'relative',
+                    zIndex: 10
+                }}
             >
-                <div className="bg-white p-2 rounded-lg shadow-lg">
-                    <Layout className="text-[#0079bf]" size={32} />
+                <div style={{
+                    background: 'white',
+                    padding: '0.625rem',
+                    borderRadius: '0.75rem',
+                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                }}>
+                    <Layout style={{ color: '#667eea' }} size={28} />
                 </div>
-                <h1 className="text-4xl font-bold text-white tracking-tight">TrelloClone</h1>
+                <h1 style={{
+                    fontSize: '2rem',
+                    fontWeight: 700,
+                    color: 'white',
+                    letterSpacing: '-0.025em',
+                    margin: 0
+                }}>TaskFlow</h1>
             </motion.div>
 
             {/* Main Card */}
@@ -71,10 +146,26 @@ export default function Login() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.3 }}
-                className="w-full max-w-[400px] bg-white rounded-lg shadow-2xl p-10 relative z-10"
+                style={{
+                    width: '100%',
+                    maxWidth: '420px',
+                    background: 'white',
+                    borderRadius: '1rem',
+                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                    padding: '2.5rem',
+                    position: 'relative',
+                    zIndex: 10
+                }}
             >
-                <h2 className="text-center text-[#5e6c84] font-semibold mb-8 text-base">
-                    {isLogin ? 'Log in to continue' : 'Sign up for your account'}
+                <h2 style={{
+                    textAlign: 'center',
+                    color: '#6b7280',
+                    fontWeight: 600,
+                    marginBottom: '2rem',
+                    fontSize: '0.875rem',
+                    margin: '0 0 2rem 0'
+                }}>
+                    {isLogin ? 'Welcome back' : 'Create your account'}
                 </h2>
 
                 <AnimatePresence mode="wait">
@@ -83,7 +174,17 @@ export default function Login() {
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             exit={{ opacity: 0, height: 0 }}
-                            className="bg-[#eb5a46] text-white p-3 rounded-md mb-6 text-sm text-center font-medium"
+                            style={{
+                                background: '#fee2e2',
+                                color: '#991b1b',
+                                padding: '0.75rem',
+                                borderRadius: '0.5rem',
+                                marginBottom: '1.5rem',
+                                fontSize: '0.875rem',
+                                textAlign: 'center',
+                                fontWeight: 500,
+                                border: '1px solid #fecaca'
+                            }}
                         >
                             {error}
                         </motion.div>
@@ -93,65 +194,172 @@ export default function Login() {
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             exit={{ opacity: 0, height: 0 }}
-                            className="bg-[#61bd4f] text-white p-3 rounded-md mb-6 text-sm text-center font-medium"
+                            style={{
+                                background: '#d1fae5',
+                                color: '#065f46',
+                                padding: '0.75rem',
+                                borderRadius: '0.5rem',
+                                marginBottom: '1.5rem',
+                                fontSize: '0.875rem',
+                                textAlign: 'center',
+                                fontWeight: 500,
+                                border: '1px solid #a7f3d0'
+                            }}
                         >
                             {successMsg}
                         </motion.div>
                     )}
                 </AnimatePresence>
 
-                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <AnimatePresence>
                         {!isLogin && (
                             <motion.div
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 exit={{ opacity: 0, height: 0 }}
-                                className="relative"
+                                style={{ position: 'relative' }}
                             >
-                                <User className="absolute left-3 top-3 text-[#5e6c84]" size={18} />
+                                <User style={{
+                                    position: 'absolute',
+                                    left: '0.875rem',
+                                    top: '0.875rem',
+                                    color: '#9ca3af'
+                                }} size={18} />
                                 <input
                                     name="username"
                                     type="text"
-                                    placeholder="Enter your full name"
-                                    className="w-full bg-[#fafbfc] border-2 border-[#dfe1e6] rounded-md py-3 pl-11 pr-4 text-sm focus:border-[#0079bf] focus:bg-white outline-none transition-all"
+                                    placeholder="Full name"
+                                    style={{
+                                        width: '100%',
+                                        background: '#f9fafb',
+                                        border: '1.5px solid #e5e7eb',
+                                        borderRadius: '0.5rem',
+                                        padding: '0.75rem 1rem 0.75rem 2.75rem',
+                                        fontSize: '0.875rem',
+                                        outline: 'none',
+                                        transition: 'all 0.15s'
+                                    }}
                                     value={formData.username}
                                     onChange={handleChange}
+                                    onFocus={(e) => {
+                                        e.target.style.borderColor = '#667eea';
+                                        e.target.style.background = 'white';
+                                        e.target.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+                                    }}
+                                    onBlur={(e) => {
+                                        e.target.style.borderColor = '#e5e7eb';
+                                        e.target.style.background = '#f9fafb';
+                                        e.target.style.boxShadow = 'none';
+                                    }}
                                 />
                             </motion.div>
                         )}
                     </AnimatePresence>
 
-                    <div className="relative">
-                        <Mail className="absolute left-3 top-3 text-[#5e6c84]" size={18} />
+                    <div style={{ position: 'relative' }}>
+                        <Mail style={{
+                            position: 'absolute',
+                            left: '0.875rem',
+                            top: '0.875rem',
+                            color: '#9ca3af'
+                        }} size={18} />
                         <input
                             name="email"
                             type="email"
-                            placeholder="Enter your email"
-                            className="w-full bg-[#fafbfc] border-2 border-[#dfe1e6] rounded-md py-3 pl-11 pr-4 text-sm focus:border-[#0079bf] focus:bg-white outline-none transition-all"
+                            placeholder="Email address"
+                            style={{
+                                width: '100%',
+                                background: '#f9fafb',
+                                border: '1.5px solid #e5e7eb',
+                                borderRadius: '0.5rem',
+                                padding: '0.75rem 1rem 0.75rem 2.75rem',
+                                fontSize: '0.875rem',
+                                outline: 'none',
+                                transition: 'all 0.15s'
+                            }}
                             value={formData.email}
                             onChange={handleChange}
                             required
+                            onFocus={(e) => {
+                                e.target.style.borderColor = '#667eea';
+                                e.target.style.background = 'white';
+                                e.target.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+                            }}
+                            onBlur={(e) => {
+                                e.target.style.borderColor = '#e5e7eb';
+                                e.target.style.background = '#f9fafb';
+                                e.target.style.boxShadow = 'none';
+                            }}
                         />
                     </div>
 
-                    <div className="relative">
-                        <Lock className="absolute left-3 top-3 text-[#5e6c84]" size={18} />
+                    <div style={{ position: 'relative' }}>
+                        <Lock style={{
+                            position: 'absolute',
+                            left: '0.875rem',
+                            top: '0.875rem',
+                            color: '#9ca3af'
+                        }} size={18} />
                         <input
                             name="password"
                             type="password"
-                            placeholder="Enter your password"
-                            className="w-full bg-[#fafbfc] border-2 border-[#dfe1e6] rounded-md py-3 pl-11 pr-4 text-sm focus:border-[#0079bf] focus:bg-white outline-none transition-all"
+                            placeholder="Password"
+                            style={{
+                                width: '100%',
+                                background: '#f9fafb',
+                                border: '1.5px solid #e5e7eb',
+                                borderRadius: '0.5rem',
+                                padding: '0.75rem 1rem 0.75rem 2.75rem',
+                                fontSize: '0.875rem',
+                                outline: 'none',
+                                transition: 'all 0.15s'
+                            }}
                             value={formData.password}
                             onChange={handleChange}
                             required
+                            onFocus={(e) => {
+                                e.target.style.borderColor = '#667eea';
+                                e.target.style.background = 'white';
+                                e.target.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+                            }}
+                            onBlur={(e) => {
+                                e.target.style.borderColor = '#e5e7eb';
+                                e.target.style.background = '#f9fafb';
+                                e.target.style.boxShadow = 'none';
+                            }}
                         />
                     </div>
 
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full bg-[#5aac44] hover:bg-[#61bd4f] text-white font-bold py-3 rounded-md transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mt-2 flex items-center justify-center gap-2"
+                        style={{
+                            width: '100%',
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            color: 'white',
+                            fontWeight: 600,
+                            padding: '0.875rem',
+                            borderRadius: '0.5rem',
+                            transition: 'all 0.15s',
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                            marginTop: '0.5rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.5rem',
+                            fontSize: '0.875rem'
+                        }}
+                        onMouseEnter={(e) => {
+                            if (!loading) {
+                                e.target.style.transform = 'translateY(-1px)';
+                                e.target.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)';
+                            }
+                        }}
+                        onMouseLeave={(e) => {
+                            e.target.style.transform = 'translateY(0)';
+                            e.target.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+                        }}
                     >
                         {loading ? (
                             <>
@@ -159,29 +367,59 @@ export default function Login() {
                                 <span>Please wait...</span>
                             </>
                         ) : (
-                            isLogin ? 'Log in' : 'Create Account'
+                            isLogin ? 'Sign In' : 'Create Account'
                         )}
                     </button>
                 </form>
 
-                <div className="mt-6 pt-6 border-t border-[#dfe1e6] text-center">
+                <div style={{
+                    marginTop: '1.5rem',
+                    paddingTop: '1.5rem',
+                    borderTop: '1px solid #e5e7eb',
+                    textAlign: 'center'
+                }}>
                     <button
+                        type="button"
                         onClick={() => {
                             setIsLogin(!isLogin);
                             setError(null);
                             setSuccessMsg(null);
                         }}
-                        className="text-[#0079bf] hover:text-[#026aa7] text-sm font-medium transition-colors"
+                        style={{
+                            background: 'none',
+                            color: '#667eea',
+                            fontSize: '0.875rem',
+                            fontWeight: 500,
+                            padding: 0
+                        }}
+                        onMouseEnter={(e) => e.target.style.color = '#764ba2'}
+                        onMouseLeave={(e) => e.target.style.color = '#667eea'}
                     >
-                        {isLogin ? "Don't have an account? Sign up" : "Already have an account? Log in"}
+                        {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
                     </button>
                 </div>
             </motion.div>
 
             {/* Demo Credentials */}
-            <div className="mt-6 text-white/80 text-sm relative z-10 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full">
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                style={{
+                    marginTop: '1.5rem',
+                    color: 'white',
+                    fontSize: '0.813rem',
+                    position: 'relative',
+                    zIndex: 10,
+                    background: 'rgba(255, 255, 255, 0.15)',
+                    backdropFilter: 'blur(10px)',
+                    padding: '0.625rem 1.25rem',
+                    borderRadius: '9999px',
+                    border: '1px solid rgba(255, 255, 255, 0.2)'
+                }}
+            >
                 Demo: test@example.com / password
-            </div>
+            </motion.div>
         </div>
     );
 }

@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { Plus, MoreHorizontal, ArrowLeft, X, Loader2, Star, Users } from 'lucide-react';
+import { Plus, MoreHorizontal, ArrowLeft, X, Loader2, UserPlus, Users } from 'lucide-react';
 
 export default function Board() {
     const { id } = useParams();
@@ -13,16 +13,32 @@ export default function Board() {
     const [isAddingList, setIsAddingList] = useState(false);
     const [newCardTitles, setNewCardTitles] = useState({});
     const [isAddingCard, setIsAddingCard] = useState({});
+    const [members, setMembers] = useState([]);
+    const [showInviteModal, setShowInviteModal] = useState(false);
+    const [inviteUserId, setInviteUserId] = useState('');
+    const [isInviting, setIsInviting] = useState(false);
+    const [currentUser, setCurrentUser] = useState(null);
 
     const ws = useRef(null);
 
     useEffect(() => {
+        fetchCurrentUser();
         fetchBoard();
+        fetchMembers();
         connectWS();
         return () => {
             if (ws.current) ws.current.close();
         };
     }, [id]);
+
+    const fetchCurrentUser = async () => {
+        try {
+            const res = await axios.get('/auth/me');
+            setCurrentUser(res.data);
+        } catch (err) {
+            console.error('Failed to fetch current user');
+        }
+    };
 
     const fetchBoard = async () => {
         try {
@@ -35,6 +51,15 @@ export default function Board() {
             setLists(sortedLists);
         } catch (err) {
             if (err.response?.status === 401) navigate('/');
+        }
+    };
+
+    const fetchMembers = async () => {
+        try {
+            const res = await axios.get(`/boards/${id}/members`);
+            setMembers(res.data);
+        } catch (err) {
+            console.error('Failed to fetch members:', err);
         }
     };
 
@@ -72,6 +97,10 @@ export default function Board() {
                         }
                         return l;
                     });
+                    break;
+                case 'USER_JOINED':
+                    // Refresh members list when someone joins
+                    fetchMembers();
                     break;
                 default: break;
             }
@@ -127,53 +156,213 @@ export default function Board() {
         } catch (err) { console.error(err); }
     };
 
+    const inviteUser = async (e) => {
+        e.preventDefault();
+        if (!inviteUserId.trim()) return;
+        setIsInviting(true);
+        try {
+            await axios.post(`/boards/${id}/invite`, { user_id: inviteUserId });
+            alert('Invitation sent successfully!');
+            setShowInviteModal(false);
+            setInviteUserId('');
+        } catch (err) {
+            alert(err.response?.data?.detail || 'Failed to send invitation');
+        } finally {
+            setIsInviting(false);
+        }
+    };
+
     if (!board) return (
-        <div className="min-h-screen bg-gradient-to-br from-[#0079bf] to-[#026aa7] flex items-center justify-center text-white">
-            <Loader2 className="animate-spin mr-2" size={32} />
-            <span className="text-lg">Loading board...</span>
+        <div style={{
+            minHeight: '100vh',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white',
+            gap: '0.5rem'
+        }}>
+            <Loader2 className="animate-spin" size={32} />
+            <span style={{ fontSize: '1.125rem' }}>Loading board...</span>
         </div>
     );
 
     return (
-        <div className="h-screen flex flex-col bg-gradient-to-br from-[#0079bf] via-[#026aa7] to-[#005a8e] overflow-hidden">
-            {/* Enhanced Header */}
-            <header className="bg-black/20 backdrop-blur-sm px-4 h-12 flex items-center justify-between text-white z-10 sticky top-0 shadow-lg border-b border-white/10">
-                <div className="flex items-center gap-3">
+        <div style={{
+            height: '100vh',
+            display: 'flex',
+            flexDirection: 'column',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            overflow: 'hidden'
+        }}>
+            {/* Header */}
+            <header style={{
+                background: 'rgba(0, 0, 0, 0.15)',
+                backdropFilter: 'blur(10px)',
+                padding: '0 1.5rem',
+                height: '3.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                color: 'white',
+                zIndex: 10,
+                position: 'sticky',
+                top: 0,
+                borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <button
                         onClick={() => navigate('/dashboard')}
-                        className="hover:bg-white/20 p-2 rounded-md transition-all"
+                        style={{
+                            background: 'transparent',
+                            color: 'white',
+                            padding: '0.5rem',
+                            borderRadius: '0.375rem',
+                            transition: 'all 0.15s'
+                        }}
+                        onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.1)'}
+                        onMouseLeave={(e) => e.target.style.background = 'transparent'}
                     >
                         <ArrowLeft size={20} />
                     </button>
-                    <h1 className="text-lg font-bold">{board.title}</h1>
-                    <button className="hover:bg-white/20 p-1.5 rounded-md transition-all">
-                        <Star size={16} />
-                    </button>
+                    <h1 style={{
+                        fontSize: '1.125rem',
+                        fontWeight: 600,
+                        margin: 0
+                    }}>{board.title}</h1>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <button className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-md text-sm font-semibold transition-all flex items-center gap-1.5">
-                        <Users size={16} />
-                        <span className="hidden sm:inline">Share</span>
-                    </button>
-                    <button className="hover:bg-white/20 p-2 rounded-md transition-all">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {/* Members Avatars */}
+                    {members.length > 0 && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginRight: '0.5rem' }}>
+                            <Users size={18} style={{ color: 'rgba(255, 255, 255, 0.9)', marginRight: '0.25rem' }} />
+                            {members.slice(0, 3).map(member => (
+                                <div key={member.user_id} style={{
+                                    width: '32px',
+                                    height: '32px',
+                                    borderRadius: '50%',
+                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: 'white',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    border: '2px solid rgba(255, 255, 255, 0.3)'
+                                }} title={`${member.username} (${member.email})`}>
+                                    {member.username[0].toUpperCase()}
+                                </div>
+                            ))}
+                            {members.length > 3 && (
+                                <div style={{
+                                    fontSize: '0.75rem',
+                                    color: 'rgba(255, 255, 255, 0.9)',
+                                    fontWeight: 500,
+                                    marginLeft: '0.25rem'
+                                }}>
+                                    +{members.length - 3}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Invite Button - Only show for board owner */}
+                    {currentUser && board && board.owner_id === currentUser.id && (
+                        <button
+                            onClick={() => setShowInviteModal(true)}
+                            style={{
+                                background: 'rgba(255, 255, 255, 0.15)',
+                                color: 'white',
+                                padding: '0.5rem 0.875rem',
+                                borderRadius: '0.375rem',
+                                fontSize: '0.875rem',
+                                fontWeight: 600,
+                                transition: 'all 0.15s',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.375rem'
+                            }}
+                            onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.25)'}
+                            onMouseLeave={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.15)'}
+                        >
+                            <UserPlus size={16} /> Invite
+                        </button>
+                    )}
+
+                    <button style={{
+                        background: 'rgba(255, 255, 255, 0.15)',
+                        color: 'white',
+                        padding: '0.5rem',
+                        borderRadius: '0.375rem',
+                        transition: 'all 0.15s'
+                    }}
+                        onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.25)'}
+                        onMouseLeave={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.15)'}
+                    >
                         <MoreHorizontal size={20} />
                     </button>
                 </div>
             </header>
 
             {/* Board Canvas */}
-            <div className="flex-1 overflow-x-auto overflow-y-hidden p-4">
+            <div style={{
+                flex: 1,
+                overflowX: 'auto',
+                overflowY: 'hidden',
+                padding: '1.5rem'
+            }} className="scrollbar-light">
                 <DragDropContext onDragEnd={onDragEnd}>
-                    <div className="flex gap-4 h-full items-start pb-4">
+                    <div style={{
+                        display: 'flex',
+                        gap: '1.25rem',
+                        height: '100%',
+                        alignItems: 'flex-start',
+                        paddingBottom: '1rem'
+                    }}>
 
                         {lists.map(list => (
-                            <div key={list.id} className="w-[280px] flex-shrink-0 flex flex-col max-h-full">
-                                <div className="bg-[#ebecf0] rounded-lg flex flex-col max-h-full shadow-lg">
+                            <div key={list.id} style={{
+                                width: '300px',
+                                flexShrink: 0,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                maxHeight: '100%'
+                            }}>
+                                <div style={{
+                                    background: '#f3f4f6',
+                                    borderRadius: '0.75rem',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    maxHeight: '100%',
+                                    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+                                }}>
                                     {/* List Header */}
-                                    <div className="p-3 font-semibold text-sm flex justify-between items-center text-[#172b4d]">
-                                        <span className="truncate flex-1">{list.title}</span>
-                                        <button className="text-[#6b778c] hover:bg-[#091e4214] p-1.5 rounded-md transition-all ml-2">
+                                    <div style={{
+                                        padding: '1rem',
+                                        fontWeight: 600,
+                                        fontSize: '0.875rem',
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        color: '#111827'
+                                    }}>
+                                        <span style={{
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap',
+                                            flex: 1
+                                        }}>{list.title}</span>
+                                        <button style={{
+                                            color: '#6b7280',
+                                            padding: '0.375rem',
+                                            borderRadius: '0.375rem',
+                                            marginLeft: '0.5rem',
+                                            transition: 'all 0.15s'
+                                        }}
+                                            onMouseEnter={(e) => e.target.style.background = '#e5e7eb'}
+                                            onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                                        >
                                             <MoreHorizontal size={16} />
                                         </button>
                                     </div>
@@ -184,7 +373,16 @@ export default function Board() {
                                             <div
                                                 ref={provided.innerRef}
                                                 {...provided.droppableProps}
-                                                className={`px-2 pb-2 flex-1 overflow-y-auto min-h-[4px] list-scrollbar ${snapshot.isDraggingOver ? 'bg-[#091e4214] rounded-md' : ''} transition-colors`}
+                                                style={{
+                                                    padding: '0 0.75rem 0.75rem 0.75rem',
+                                                    flex: 1,
+                                                    overflowY: 'auto',
+                                                    minHeight: '4px',
+                                                    background: snapshot.isDraggingOver ? '#e5e7eb' : 'transparent',
+                                                    borderRadius: '0.5rem',
+                                                    transition: 'background 0.15s'
+                                                }}
+                                                className="list-scrollbar"
                                             >
                                                 {list.cards.map((card, index) => (
                                                     <Draggable key={card.id} draggableId={card.id} index={index}>
@@ -193,11 +391,23 @@ export default function Board() {
                                                                 ref={provided.innerRef}
                                                                 {...provided.draggableProps}
                                                                 {...provided.dragHandleProps}
-                                                                className={`
-                                                            bg-white p-3 mb-2 rounded-lg shadow-sm hover:shadow-md cursor-pointer text-sm text-[#172b4d] break-words transition-all
-                                                            ${snapshot.isDragging ? 'rotate-3 shadow-2xl ring-2 ring-blue-400' : ''}
-                                                        `}
-                                                                style={{ ...provided.draggableProps.style }}
+                                                                style={{
+                                                                    background: 'white',
+                                                                    padding: '0.875rem',
+                                                                    marginBottom: '0.625rem',
+                                                                    borderRadius: '0.5rem',
+                                                                    boxShadow: snapshot.isDragging
+                                                                        ? '0 10px 15px -3px rgba(0, 0, 0, 0.2)'
+                                                                        : '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                                                                    cursor: 'pointer',
+                                                                    fontSize: '0.875rem',
+                                                                    color: '#111827',
+                                                                    wordWrap: 'break-word',
+                                                                    transition: 'box-shadow 0.15s',
+                                                                    transform: snapshot.isDragging ? 'rotate(2deg)' : 'none',
+                                                                    border: snapshot.isDragging ? '2px solid #667eea' : '1px solid #e5e7eb',
+                                                                    ...provided.draggableProps.style
+                                                                }}
                                                             >
                                                                 {card.title}
                                                             </div>
@@ -207,11 +417,21 @@ export default function Board() {
                                                 {provided.placeholder}
 
                                                 {isAddingCard[list.id] && (
-                                                    <div className="mb-2 animate-in fade-in duration-200">
+                                                    <div style={{ marginBottom: '0.625rem' }}>
                                                         <form onSubmit={(e) => addCard(e, list.id)}>
                                                             <textarea
                                                                 autoFocus
-                                                                className="w-full p-3 text-sm rounded-lg shadow-md border-2 border-[#0079bf] outline-none resize-none placeholder-gray-400 mb-2"
+                                                                style={{
+                                                                    width: '100%',
+                                                                    padding: '0.875rem',
+                                                                    fontSize: '0.875rem',
+                                                                    borderRadius: '0.5rem',
+                                                                    border: '2px solid #667eea',
+                                                                    outline: 'none',
+                                                                    resize: 'none',
+                                                                    marginBottom: '0.5rem',
+                                                                    boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
+                                                                }}
                                                                 placeholder="Enter a title for this card..."
                                                                 rows={3}
                                                                 value={newCardTitles[list.id] || ''}
@@ -226,17 +446,41 @@ export default function Board() {
                                                                     }
                                                                 }}
                                                             />
-                                                            <div className="flex items-center gap-2">
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                                                 <button
                                                                     type="submit"
-                                                                    className="bg-[#0079bf] hover:bg-[#026aa7] text-white text-sm px-4 py-2 rounded-md font-semibold shadow-md hover:shadow-lg transition-all"
+                                                                    style={{
+                                                                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                                                        color: 'white',
+                                                                        fontSize: '0.875rem',
+                                                                        padding: '0.5rem 1rem',
+                                                                        borderRadius: '0.375rem',
+                                                                        fontWeight: 600,
+                                                                        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                                                                        transition: 'all 0.15s'
+                                                                    }}
+                                                                    onMouseEnter={(e) => e.target.style.transform = 'translateY(-1px)'}
+                                                                    onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
                                                                 >
                                                                     Add card
                                                                 </button>
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => setIsAddingCard(prev => ({ ...prev, [list.id]: false }))}
-                                                                    className="text-[#6b778c] hover:text-[#172b4d] hover:bg-[#091e4214] p-2 rounded-md transition-all"
+                                                                    style={{
+                                                                        color: '#6b7280',
+                                                                        padding: '0.5rem',
+                                                                        borderRadius: '0.375rem',
+                                                                        transition: 'all 0.15s'
+                                                                    }}
+                                                                    onMouseEnter={(e) => {
+                                                                        e.target.style.background = '#e5e7eb';
+                                                                        e.target.style.color = '#111827';
+                                                                    }}
+                                                                    onMouseLeave={(e) => {
+                                                                        e.target.style.background = 'transparent';
+                                                                        e.target.style.color = '#6b7280';
+                                                                    }}
                                                                 >
                                                                     <X size={20} />
                                                                 </button>
@@ -252,7 +496,26 @@ export default function Board() {
                                     {!isAddingCard[list.id] && (
                                         <button
                                             onClick={() => setIsAddingCard(prev => ({ ...prev, [list.id]: true }))}
-                                            className="m-2 p-2 flex items-center gap-2 text-[#5e6c84] hover:bg-[#091e4214] hover:text-[#172b4d] rounded-md text-sm font-medium transition-all"
+                                            style={{
+                                                margin: '0 0.75rem 0.75rem 0.75rem',
+                                                padding: '0.625rem',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.5rem',
+                                                color: '#6b7280',
+                                                borderRadius: '0.375rem',
+                                                fontSize: '0.875rem',
+                                                fontWeight: 500,
+                                                transition: 'all 0.15s'
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                e.target.style.background = '#e5e7eb';
+                                                e.target.style.color = '#111827';
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.target.style.background = 'transparent';
+                                                e.target.style.color = '#6b7280';
+                                            }}
                                         >
                                             <Plus size={16} /> Add a card
                                         </button>
@@ -262,20 +525,56 @@ export default function Board() {
                         ))}
 
                         {/* Add List Section */}
-                        <div className="w-[280px] flex-shrink-0">
+                        <div style={{ width: '300px', flexShrink: 0 }}>
                             {!isAddingList ? (
                                 <button
                                     onClick={() => setIsAddingList(true)}
-                                    className="w-full bg-white/20 hover:bg-white/30 backdrop-blur-sm p-3 rounded-lg text-white flex items-center gap-2 transition-all font-semibold shadow-md hover:shadow-lg"
+                                    style={{
+                                        width: '100%',
+                                        background: 'rgba(255, 255, 255, 0.2)',
+                                        backdropFilter: 'blur(10px)',
+                                        padding: '0.875rem',
+                                        borderRadius: '0.75rem',
+                                        color: 'white',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        transition: 'all 0.15s',
+                                        fontWeight: 600,
+                                        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                                        border: '1px solid rgba(255, 255, 255, 0.1)'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.target.style.background = 'rgba(255, 255, 255, 0.3)';
+                                        e.target.style.transform = 'translateY(-2px)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.target.style.background = 'rgba(255, 255, 255, 0.2)';
+                                        e.target.style.transform = 'translateY(0)';
+                                    }}
                                 >
                                     <Plus size={18} /> Add another list
                                 </button>
                             ) : (
-                                <div className="bg-[#ebecf0] p-3 rounded-lg shadow-lg animate-in fade-in duration-200">
+                                <div style={{
+                                    background: '#f3f4f6',
+                                    padding: '0.875rem',
+                                    borderRadius: '0.75rem',
+                                    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+                                }}>
                                     <form onSubmit={addList}>
                                         <input
                                             autoFocus
-                                            className="w-full p-2.5 rounded-md border-2 border-[#0079bf] outline-none text-sm placeholder-[#5e6c84] mb-2 shadow-sm"
+                                            style={{
+                                                width: '100%',
+                                                padding: '0.625rem',
+                                                borderRadius: '0.375rem',
+                                                border: '2px solid #667eea',
+                                                outline: 'none',
+                                                fontSize: '0.875rem',
+                                                marginBottom: '0.5rem',
+                                                boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
+                                            }}
                                             placeholder="Enter list title..."
                                             value={newListTitle}
                                             onChange={e => setNewListTitle(e.target.value)}
@@ -286,17 +585,41 @@ export default function Board() {
                                                 }
                                             }}
                                         />
-                                        <div className="flex items-center gap-2">
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                             <button
                                                 type="submit"
-                                                className="bg-[#0079bf] hover:bg-[#026aa7] text-white text-sm px-4 py-2 rounded-md font-semibold shadow-md hover:shadow-lg transition-all"
+                                                style={{
+                                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                                    color: 'white',
+                                                    fontSize: '0.875rem',
+                                                    padding: '0.5rem 1rem',
+                                                    borderRadius: '0.375rem',
+                                                    fontWeight: 600,
+                                                    boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                                                    transition: 'all 0.15s'
+                                                }}
+                                                onMouseEnter={(e) => e.target.style.transform = 'translateY(-1px)'}
+                                                onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
                                             >
                                                 Add list
                                             </button>
                                             <button
                                                 type="button"
                                                 onClick={() => setIsAddingList(false)}
-                                                className="text-[#6b778c] hover:text-[#172b4d] hover:bg-[#091e4214] p-2 rounded-md transition-all"
+                                                style={{
+                                                    color: '#6b7280',
+                                                    padding: '0.5rem',
+                                                    borderRadius: '0.375rem',
+                                                    transition: 'all 0.15s'
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    e.target.style.background = '#e5e7eb';
+                                                    e.target.style.color = '#111827';
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.target.style.background = 'transparent';
+                                                    e.target.style.color = '#6b7280';
+                                                }}
                                             >
                                                 <X size={20} />
                                             </button>
@@ -309,6 +632,96 @@ export default function Board() {
                     </div>
                 </DragDropContext>
             </div>
+
+            {/* Invite Modal */}
+            {showInviteModal && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0, 0, 0, 0.5)',
+                    backdropFilter: 'blur(4px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1000
+                }} onClick={() => setShowInviteModal(false)}>
+                    <div style={{
+                        background: 'white',
+                        borderRadius: '0.75rem',
+                        padding: '1.5rem',
+                        width: '90%',
+                        maxWidth: '400px',
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
+                    }} onClick={(e) => e.stopPropagation()}>
+                        <h2 style={{
+                            fontSize: '1.25rem',
+                            fontWeight: 700,
+                            marginBottom: '1rem',
+                            color: '#111827'
+                        }}>Invite User to Board</h2>
+
+                        <form onSubmit={inviteUser}>
+                            <input
+                                autoFocus
+                                type="text"
+                                placeholder="Enter user ID"
+                                value={inviteUserId}
+                                onChange={(e) => setInviteUserId(e.target.value)}
+                                style={{
+                                    width: '100%',
+                                    padding: '0.75rem',
+                                    borderRadius: '0.5rem',
+                                    border: '2px solid #e5e7eb',
+                                    fontSize: '0.875rem',
+                                    marginBottom: '1rem',
+                                    outline: 'none'
+                                }}
+                                onFocus={(e) => e.target.style.borderColor = '#667eea'}
+                                onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+                            />
+
+                            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowInviteModal(false)}
+                                    style={{
+                                        padding: '0.5rem 1rem',
+                                        borderRadius: '0.375rem',
+                                        fontSize: '0.875rem',
+                                        fontWeight: 600,
+                                        color: '#6b7280',
+                                        transition: 'all 0.15s'
+                                    }}
+                                    onMouseEnter={(e) => e.target.style.background = '#f3f4f6'}
+                                    onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isInviting}
+                                    style={{
+                                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                        color: 'white',
+                                        padding: '0.5rem 1rem',
+                                        borderRadius: '0.375rem',
+                                        fontSize: '0.875rem',
+                                        fontWeight: 600,
+                                        transition: 'all 0.15s',
+                                        opacity: isInviting ? 0.6 : 1,
+                                        cursor: isInviting ? 'not-allowed' : 'pointer'
+                                    }}
+                                >
+                                    {isInviting ? 'Sending...' : 'Send Invitation'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

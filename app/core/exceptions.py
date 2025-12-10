@@ -43,3 +43,12 @@ class ListNotFound(Exception):
 
 class CardNotFound(Exception):
     pass
+
+
+class InvitationNotFound(Exception):
+    pass
+
+
+class InvitationAlreadyResponded(Exception):
+    pass
+

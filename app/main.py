@@ -4,6 +4,7 @@ from app.api.board_api import boardRouter
 from app.api.list_api import listRouter
 from app.api.card_api import cardRouter
 from app.api.websocket_api import websocketRouter
+from app.api.board_invite_api import inviteRouter
 from app.core.exception_handlers import register_exception_handlers
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -20,5 +21,6 @@ app.include_router(router=authRouter)
 app.include_router(router=boardRouter)
 app.include_router(router=listRouter)
 app.include_router(router=cardRouter)
+app.include_router(router=inviteRouter)
 app.include_router(router=websocketRouter)
 register_exception_handlers(app)

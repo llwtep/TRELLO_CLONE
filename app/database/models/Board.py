@@ -20,3 +20,6 @@ class Board(Base):
     lists: Mapped[List["List"]] = relationship(
         "ListModel", back_populates="board", cascade="all, delete-orphan"
     )
+    board_users: Mapped[List["BoardUser"]] = relationship(
+        "BoardUser", back_populates="board", cascade="all, delete-orphan"
+    )
