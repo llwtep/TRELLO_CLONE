@@ -1,5 +1,5 @@
 # ==============================================================================
-# Backend Dockerfile - FastAPI Application
+# Backend Dockerfile - FastAPI Application (llwtep Project)
 # ==============================================================================
 FROM python:3.12-slim AS base
 
@@ -39,6 +39,7 @@ RUN addgroup --system --gid 1001 appgroup && \
 
 USER appuser
 
+# Internal port - not exposed externally, nginx proxies to this
 EXPOSE 8000
 
 ENTRYPOINT ["./entrypoint.sh"]
