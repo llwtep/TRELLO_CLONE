@@ -20,11 +20,11 @@ class BoardUserService:
     async def invite_user(
         self,
         board_id: UUID,
-        invited_user_id: UUID,
+        invited_user_email: str,
         inviter_user_id: UUID
     ) -> BoardUserOut:
         """
-        Invite a user to a board. Only the board owner can invite users.
+        Invite a user to a board by email. Only the board owner can invite users.
         If invitation already exists, updates status back to 'pending'.
         """
         async with self.uow() as uow:
@@ -36,22 +36,36 @@ class BoardUserService:
             if board.owner_id != inviter_user_id:
                 raise PermissionDenied("Only the board owner can invite users")
             
-            # Verify invited user exists
-            invited_user = await uow.users.get_by_id(invited_user_id)
+            # Look up invited user by email
+            invited_user = await uow.users.get_by_email(invited_user_email)
             if not invited_user:
-                raise UserNotFoundError("Invited user not found")
+                raise UserNotFoundError(f"No user found with email: {invited_user_email}")
             
             # Prevent owner from inviting themselves
-            if invited_user_id == inviter_user_id:
+            if invited_user.id == inviter_user_id:
                 raise PermissionDenied("Cannot invite yourself to the board")
             
             # Create or update invitation
             board_user = await uow.board_user.create_or_update_board_user(
                 board_id=board_id,
-                user_id=invited_user_id,
+                user_id=invited_user.id,
                 invited_by=inviter_user_id,
                 status="pending"
             )
+            
+            # Notify the invited user in real-time
+            if self.ws_manager:
+                await self.ws_manager.send_to_user(invited_user.id, {
+                    "type": "INVITATION_RECEIVED",
+                    "payload": {
+                        "id": str(board_user.id),
+                        "board_id": str(board_id),
+                        "board_title": board.title,
+                        "user_id": str(invited_user.id),
+                        "invited_by": str(inviter_user_id),
+                        "status": "pending"
+                    }
+                })
             
             return BoardUserOut.model_validate(board_user)
 

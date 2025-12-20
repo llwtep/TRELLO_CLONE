@@ -81,3 +81,34 @@ async def websocket_endpoint(
     except Exception as e:
         print(f"WebSocket error: {e}")
         manager.disconnect(board_id, websocket)
+
+
+@websocketRouter.websocket("/ws/user")
+async def user_websocket_endpoint(
+        websocket: WebSocket,
+        uow: UnitOfWork = Depends(get_uow),
+        manager: WebSocketManager = Depends(get_ws_manager)
+):
+    """
+    User-level WebSocket for personal notifications like invitations.
+    This allows real-time updates to users regardless of which board they're viewing.
+    """
+    # Authenticate
+    user = await get_current_user_ws(websocket, uow)
+    if not user:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
+    # Connect user to their personal notification channel
+    await manager.connect_user(user.id, websocket)
+    try:
+        while True:
+            # Keep connection alive
+            data = await websocket.receive_text()
+            # Could handle ping/pong here if needed
+    except WebSocketDisconnect:
+        manager.disconnect_user(user.id, websocket)
+    except Exception as e:
+        print(f"User WebSocket error: {e}")
+        manager.disconnect_user(user.id, websocket)
+

@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Plus, Layout, LogOut, Search, Star, Clock, ChevronDown, Bell } from 'lucide-react';
+import { Plus, Layout, LogOut, Search, Star, Clock, ChevronDown, Bell, Edit2, Trash2, MoreHorizontal } from 'lucide-react';
 
 export default function Dashboard() {
     const [boards, setBoards] = useState([]);
@@ -13,11 +13,64 @@ export default function Dashboard() {
     const [showInvitations, setShowInvitations] = useState(false);
     const navigate = useNavigate();
 
+    // New state for board edit/delete
+    const [showBoardMenu, setShowBoardMenu] = useState(null); // board id
+    const [editingBoard, setEditingBoard] = useState(null); // {id, title}
+    const [deleteConfirm, setDeleteConfirm] = useState(null); // {id, title}
+
+    // WebSocket ref for user notifications
+    const ws = useRef(null);
+
     useEffect(() => {
         fetchBoards();
         fetchUser();
         fetchInvitations();
+        connectUserWS();
+
+        return () => {
+            if (ws.current) ws.current.close();
+        };
     }, []);
+
+    // Connect to user-level WebSocket for real-time notifications
+    const connectUserWS = () => {
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${wsProtocol}//${window.location.host}/ws/user`;
+
+        ws.current = new WebSocket(wsUrl);
+
+        ws.current.onmessage = (event) => {
+            const message = JSON.parse(event.data);
+            handleWSMessage(message);
+        };
+
+        ws.current.onclose = () => {
+            // Reconnect after a delay if disconnected
+            setTimeout(connectUserWS, 3000);
+        };
+
+        ws.current.onerror = (error) => {
+            console.error('User WebSocket error:', error);
+        };
+    };
+
+    const handleWSMessage = (msg) => {
+        const { type, payload } = msg;
+
+        switch (type) {
+            case 'INVITATION_RECEIVED':
+                // Add the new invitation to the list
+                setInvitations(prev => {
+                    // Avoid duplicates
+                    const exists = prev.some(inv => inv.id === payload.id);
+                    if (exists) return prev;
+                    return [...prev, payload];
+                });
+                break;
+            default:
+                break;
+        }
+    };
 
     const fetchUser = async () => {
         try {
@@ -73,6 +126,30 @@ export default function Dashboard() {
             }
         } catch (err) {
             alert('Failed to respond to invitation');
+        }
+    };
+
+    // Board edit/delete functions
+    const updateBoard = async (boardId, newTitle) => {
+        if (!newTitle.trim()) return;
+        try {
+            await axios.patch(`/boards/${boardId}`, { title: newTitle });
+            setEditingBoard(null);
+            fetchBoards();
+        } catch (err) {
+            console.error('Failed to update board:', err);
+            alert('Failed to update board');
+        }
+    };
+
+    const deleteBoard = async (boardId) => {
+        try {
+            await axios.delete(`/boards/${boardId}`);
+            setDeleteConfirm(null);
+            fetchBoards();
+        } catch (err) {
+            console.error('Failed to delete board:', err);
+            alert('Failed to delete board');
         }
     };
 
@@ -337,7 +414,7 @@ export default function Dashboard() {
                                     padding: '1.25rem',
                                     position: 'relative',
                                     cursor: 'pointer',
-                                    overflow: 'hidden',
+                                    overflow: 'visible',
                                     boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
                                     transition: 'all 0.2s'
                                 }}
@@ -353,8 +430,95 @@ export default function Dashboard() {
                                 <div style={{
                                     position: 'absolute',
                                     inset: 0,
-                                    background: 'linear-gradient(to bottom, transparent, rgba(0,0,0,0.1))'
+                                    background: 'linear-gradient(to bottom, transparent, rgba(0,0,0,0.1))',
+                                    borderRadius: '0.75rem'
                                 }} />
+
+                                {/* Menu Button */}
+                                <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', zIndex: 20 }}>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setShowBoardMenu(showBoardMenu === board.id ? null : board.id);
+                                        }}
+                                        style={{
+                                            color: 'rgba(255,255,255,0.8)',
+                                            padding: '0.375rem',
+                                            borderRadius: '0.375rem',
+                                            transition: 'all 0.15s',
+                                            background: showBoardMenu === board.id ? 'rgba(0,0,0,0.2)' : 'transparent'
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.2)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = showBoardMenu === board.id ? 'rgba(0,0,0,0.2)' : 'transparent'}
+                                    >
+                                        <MoreHorizontal size={18} />
+                                    </button>
+                                    {showBoardMenu === board.id && (
+                                        <div
+                                            style={{
+                                                position: 'absolute',
+                                                top: '100%',
+                                                right: 0,
+                                                marginTop: '0.25rem',
+                                                background: 'white',
+                                                borderRadius: '0.5rem',
+                                                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.2)',
+                                                border: '1px solid #e5e7eb',
+                                                minWidth: '140px',
+                                                zIndex: 50,
+                                                overflow: 'hidden'
+                                            }}
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <button
+                                                onClick={() => {
+                                                    setShowBoardMenu(null);
+                                                    setEditingBoard({ id: board.id, title: board.title });
+                                                }}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '0.625rem 0.875rem',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.5rem',
+                                                    fontSize: '0.875rem',
+                                                    color: '#374151',
+                                                    background: 'transparent',
+                                                    border: 'none',
+                                                    cursor: 'pointer',
+                                                    transition: 'background 0.15s'
+                                                }}
+                                                onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
+                                                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                            >
+                                                <Edit2 size={14} /> Rename
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setShowBoardMenu(null);
+                                                    setDeleteConfirm({ id: board.id, title: board.title });
+                                                }}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '0.625rem 0.875rem',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.5rem',
+                                                    fontSize: '0.875rem',
+                                                    color: '#ef4444',
+                                                    background: 'transparent',
+                                                    border: 'none',
+                                                    cursor: 'pointer',
+                                                    transition: 'background 0.15s'
+                                                }}
+                                                onMouseEnter={(e) => e.currentTarget.style.background = '#fef2f2'}
+                                                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                            >
+                                                <Trash2 size={14} /> Delete
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
 
                                 <div style={{ position: 'relative', zIndex: 10 }}>
                                     <h3 style={{
@@ -366,7 +530,8 @@ export default function Dashboard() {
                                         overflow: 'hidden',
                                         textOverflow: 'ellipsis',
                                         whiteSpace: 'nowrap',
-                                        textShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                                        textShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                                        paddingRight: '2rem'
                                     }}>{board.title}</h3>
                                     <div style={{
                                         display: 'flex',
@@ -583,6 +748,190 @@ export default function Dashboard() {
                         >
                             Close
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Board Modal */}
+            {editingBoard && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0, 0, 0, 0.5)',
+                    backdropFilter: 'blur(4px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1000
+                }} onClick={() => setEditingBoard(null)}>
+                    <div style={{
+                        background: 'white',
+                        borderRadius: '0.75rem',
+                        padding: '1.5rem',
+                        width: '90%',
+                        maxWidth: '400px',
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
+                    }} onClick={(e) => e.stopPropagation()}>
+                        <h2 style={{
+                            fontSize: '1.25rem',
+                            fontWeight: 700,
+                            marginBottom: '1rem',
+                            color: '#111827'
+                        }}>Rename Board</h2>
+
+                        <input
+                            autoFocus
+                            type="text"
+                            value={editingBoard.title}
+                            onChange={(e) => setEditingBoard({ ...editingBoard, title: e.target.value })}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    updateBoard(editingBoard.id, editingBoard.title);
+                                }
+                                if (e.key === 'Escape') {
+                                    setEditingBoard(null);
+                                }
+                            }}
+                            style={{
+                                width: '100%',
+                                padding: '0.75rem',
+                                borderRadius: '0.5rem',
+                                border: '2px solid #667eea',
+                                fontSize: '0.875rem',
+                                marginBottom: '1rem',
+                                outline: 'none',
+                                boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
+                            }}
+                        />
+
+                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                            <button
+                                onClick={() => setEditingBoard(null)}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.375rem',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 600,
+                                    color: '#6b7280',
+                                    transition: 'all 0.15s'
+                                }}
+                                onMouseEnter={(e) => e.target.style.background = '#f3f4f6'}
+                                onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => updateBoard(editingBoard.id, editingBoard.title)}
+                                style={{
+                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                    color: 'white',
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.375rem',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 600,
+                                    transition: 'all 0.15s'
+                                }}
+                                onMouseEnter={(e) => e.target.style.transform = 'translateY(-1px)'}
+                                onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+                            >
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Board Confirmation Modal */}
+            {deleteConfirm && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0, 0, 0, 0.5)',
+                    backdropFilter: 'blur(4px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1000
+                }} onClick={() => setDeleteConfirm(null)}>
+                    <div style={{
+                        background: 'white',
+                        borderRadius: '0.75rem',
+                        padding: '1.5rem',
+                        width: '90%',
+                        maxWidth: '400px',
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
+                    }} onClick={(e) => e.stopPropagation()}>
+                        <div style={{
+                            width: '3rem',
+                            height: '3rem',
+                            borderRadius: '50%',
+                            background: '#fef2f2',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginBottom: '1rem'
+                        }}>
+                            <Trash2 size={24} style={{ color: '#ef4444' }} />
+                        </div>
+
+                        <h2 style={{
+                            fontSize: '1.25rem',
+                            fontWeight: 700,
+                            marginBottom: '0.5rem',
+                            color: '#111827'
+                        }}>Delete Board?</h2>
+
+                        <p style={{
+                            fontSize: '0.875rem',
+                            color: '#6b7280',
+                            marginBottom: '1.5rem',
+                            lineHeight: 1.5
+                        }}>
+                            Are you sure you want to delete "{deleteConfirm.title}"?
+                            This will also delete all lists and cards in this board.
+                            This action cannot be undone.
+                        </p>
+
+                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                            <button
+                                onClick={() => setDeleteConfirm(null)}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.375rem',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 600,
+                                    color: '#6b7280',
+                                    transition: 'all 0.15s'
+                                }}
+                                onMouseEnter={(e) => e.target.style.background = '#f3f4f6'}
+                                onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => deleteBoard(deleteConfirm.id)}
+                                style={{
+                                    background: '#ef4444',
+                                    color: 'white',
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.375rem',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 600,
+                                    transition: 'all 0.15s'
+                                }}
+                                onMouseEnter={(e) => e.target.style.background = '#dc2626'}
+                                onMouseLeave={(e) => e.target.style.background = '#ef4444'}
+                            >
+                                Delete
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

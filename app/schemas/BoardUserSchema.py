@@ -1,11 +1,11 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from uuid import UUID
 from typing import Literal
 
 
 class InviteUserRequest(BaseModel):
-    """Request schema for inviting a user to a board"""
-    user_id: UUID
+    """Request schema for inviting a user to a board by email"""
+    email: EmailStr
 
 
 class RespondToInvitationRequest(BaseModel):

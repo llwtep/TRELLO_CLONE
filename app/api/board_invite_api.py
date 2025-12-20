@@ -24,13 +24,13 @@ async def invite_user_to_board(
     ws_manager: WebSocketManager = Depends(get_ws_manager)
 ):
     """
-    Invite a user to a board. Only the board owner can invite users.
+    Invite a user to a board by email. Only the board owner can invite users.
     If the user was already invited, their status will be reset to 'pending'.
     """
     service = BoardUserService(uow, ws_manager)
     return await service.invite_user(
         board_id=board_id,
-        invited_user_id=data.user_id,
+        invited_user_email=data.email,
         inviter_user_id=current_user.id
     )
 

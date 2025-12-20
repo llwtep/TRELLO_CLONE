@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { Plus, MoreHorizontal, ArrowLeft, X, Loader2, UserPlus, Users } from 'lucide-react';
+import { Plus, MoreHorizontal, ArrowLeft, X, Loader2, UserPlus, Users, Edit2, Trash2 } from 'lucide-react';
 
 export default function Board() {
     const { id } = useParams();
@@ -15,9 +15,17 @@ export default function Board() {
     const [isAddingCard, setIsAddingCard] = useState({});
     const [members, setMembers] = useState([]);
     const [showInviteModal, setShowInviteModal] = useState(false);
-    const [inviteUserId, setInviteUserId] = useState('');
+    const [inviteEmail, setInviteEmail] = useState('');
     const [isInviting, setIsInviting] = useState(false);
     const [currentUser, setCurrentUser] = useState(null);
+
+    // New state for edit/delete functionality
+    const [editingCard, setEditingCard] = useState(null); // {id, title, listId}
+    const [editingListId, setEditingListId] = useState(null);
+    const [editingListTitle, setEditingListTitle] = useState('');
+    const [showCardMenu, setShowCardMenu] = useState(null); // card id
+    const [showListMenu, setShowListMenu] = useState(null); // list id
+    const [deleteConfirm, setDeleteConfirm] = useState(null); // {type: 'card'|'list', id, title}
 
     const ws = useRef(null);
 
@@ -80,6 +88,9 @@ export default function Board() {
                 case 'LIST_UPDATED':
                     newLists = newLists.map(l => l.id === payload.id ? { ...l, ...payload } : l);
                     break;
+                case 'LIST_DELETED':
+                    newLists = newLists.filter(l => l.id !== payload.id);
+                    break;
                 case 'CARD_CREATED':
                     newLists = newLists.map(l => {
                         if (l.id === payload.list_id) {
@@ -87,6 +98,18 @@ export default function Board() {
                         }
                         return l;
                     });
+                    break;
+                case 'CARD_UPDATED':
+                    newLists = newLists.map(l => ({
+                        ...l,
+                        cards: l.cards.map(c => c.id === payload.id ? { ...c, ...payload } : c)
+                    }));
+                    break;
+                case 'CARD_DELETED':
+                    newLists = newLists.map(l => ({
+                        ...l,
+                        cards: l.cards.filter(c => c.id !== payload.id)
+                    }));
                     break;
                 case 'CARD_MOVED':
                     const card = payload;
@@ -158,17 +181,62 @@ export default function Board() {
 
     const inviteUser = async (e) => {
         e.preventDefault();
-        if (!inviteUserId.trim()) return;
+        if (!inviteEmail.trim()) return;
         setIsInviting(true);
         try {
-            await axios.post(`/boards/${id}/invite`, { user_id: inviteUserId });
+            await axios.post(`/boards/${id}/invite`, { email: inviteEmail });
             alert('Invitation sent successfully!');
             setShowInviteModal(false);
-            setInviteUserId('');
+            setInviteEmail('');
         } catch (err) {
             alert(err.response?.data?.detail || 'Failed to send invitation');
         } finally {
             setIsInviting(false);
+        }
+    };
+
+    // Card edit/delete functions
+    const updateCard = async (cardId, newTitle) => {
+        if (!newTitle.trim()) return;
+        try {
+            await axios.patch(`/cards/${cardId}`, { title: newTitle });
+            setEditingCard(null);
+        } catch (err) {
+            console.error('Failed to update card:', err);
+            alert('Failed to update card');
+        }
+    };
+
+    const deleteCard = async (cardId) => {
+        try {
+            await axios.delete(`/cards/${cardId}`);
+            setDeleteConfirm(null);
+        } catch (err) {
+            console.error('Failed to delete card:', err);
+            alert('Failed to delete card');
+        }
+    };
+
+    // List edit/delete functions
+    const updateList = async (listId, newTitle) => {
+        if (!newTitle.trim()) return;
+        try {
+            await axios.patch(`/boards/${id}/lists/${listId}`, { title: newTitle });
+            setEditingListId(null);
+            setEditingListTitle('');
+        } catch (err) {
+            console.error('Failed to update list:', err);
+            alert('Failed to update list');
+        }
+    };
+
+    const deleteList = async (listId) => {
+        try {
+            await axios.delete(`/boards/${id}/lists/${listId}`);
+            setDeleteConfirm(null);
+        } catch (err) {
+            console.error('Failed to delete list:', err);
+            alert('Failed to delete list');
         }
     };
 
@@ -345,26 +413,152 @@ export default function Board() {
                                         display: 'flex',
                                         justifyContent: 'space-between',
                                         alignItems: 'center',
-                                        color: '#111827'
+                                        color: '#111827',
+                                        position: 'relative'
                                     }}>
-                                        <span style={{
-                                            overflow: 'hidden',
-                                            textOverflow: 'ellipsis',
-                                            whiteSpace: 'nowrap',
-                                            flex: 1
-                                        }}>{list.title}</span>
-                                        <button style={{
-                                            color: '#6b7280',
-                                            padding: '0.375rem',
-                                            borderRadius: '0.375rem',
-                                            marginLeft: '0.5rem',
-                                            transition: 'all 0.15s'
-                                        }}
-                                            onMouseEnter={(e) => e.target.style.background = '#e5e7eb'}
-                                            onMouseLeave={(e) => e.target.style.background = 'transparent'}
-                                        >
-                                            <MoreHorizontal size={16} />
-                                        </button>
+                                        {editingListId === list.id ? (
+                                            <input
+                                                autoFocus
+                                                type="text"
+                                                value={editingListTitle}
+                                                onChange={(e) => setEditingListTitle(e.target.value)}
+                                                onBlur={() => {
+                                                    if (editingListTitle.trim() && editingListTitle !== list.title) {
+                                                        updateList(list.id, editingListTitle);
+                                                    } else {
+                                                        setEditingListId(null);
+                                                        setEditingListTitle('');
+                                                    }
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        if (editingListTitle.trim() && editingListTitle !== list.title) {
+                                                            updateList(list.id, editingListTitle);
+                                                        } else {
+                                                            setEditingListId(null);
+                                                            setEditingListTitle('');
+                                                        }
+                                                    }
+                                                    if (e.key === 'Escape') {
+                                                        setEditingListId(null);
+                                                        setEditingListTitle('');
+                                                    }
+                                                }}
+                                                style={{
+                                                    flex: 1,
+                                                    padding: '0.25rem 0.5rem',
+                                                    fontSize: '0.875rem',
+                                                    fontWeight: 600,
+                                                    border: '2px solid #667eea',
+                                                    borderRadius: '0.375rem',
+                                                    outline: 'none',
+                                                    background: 'white'
+                                                }}
+                                            />
+                                        ) : (
+                                            <span
+                                                onClick={() => {
+                                                    setEditingListId(list.id);
+                                                    setEditingListTitle(list.title);
+                                                }}
+                                                style={{
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    whiteSpace: 'nowrap',
+                                                    flex: 1,
+                                                    cursor: 'pointer'
+                                                }}
+                                                title="Click to edit"
+                                            >{list.title}</span>
+                                        )}
+                                        <div style={{ position: 'relative' }}>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setShowListMenu(showListMenu === list.id ? null : list.id);
+                                                    setShowCardMenu(null);
+                                                }}
+                                                style={{
+                                                    color: '#6b7280',
+                                                    padding: '0.375rem',
+                                                    borderRadius: '0.375rem',
+                                                    marginLeft: '0.5rem',
+                                                    transition: 'all 0.15s',
+                                                    background: showListMenu === list.id ? '#e5e7eb' : 'transparent'
+                                                }}
+                                                onMouseEnter={(e) => e.currentTarget.style.background = '#e5e7eb'}
+                                                onMouseLeave={(e) => e.currentTarget.style.background = showListMenu === list.id ? '#e5e7eb' : 'transparent'}
+                                            >
+                                                <MoreHorizontal size={16} />
+                                            </button>
+                                            {showListMenu === list.id && (
+                                                <div
+                                                    style={{
+                                                        position: 'absolute',
+                                                        top: '100%',
+                                                        right: 0,
+                                                        marginTop: '0.25rem',
+                                                        background: 'white',
+                                                        borderRadius: '0.5rem',
+                                                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15)',
+                                                        border: '1px solid #e5e7eb',
+                                                        minWidth: '150px',
+                                                        zIndex: 50,
+                                                        overflow: 'hidden'
+                                                    }}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    <button
+                                                        onClick={() => {
+                                                            setShowListMenu(null);
+                                                            setEditingListId(list.id);
+                                                            setEditingListTitle(list.title);
+                                                        }}
+                                                        style={{
+                                                            width: '100%',
+                                                            padding: '0.625rem 0.875rem',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '0.5rem',
+                                                            fontSize: '0.875rem',
+                                                            color: '#374151',
+                                                            background: 'transparent',
+                                                            border: 'none',
+                                                            cursor: 'pointer',
+                                                            transition: 'background 0.15s'
+                                                        }}
+                                                        onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
+                                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                                    >
+                                                        <Edit2 size={14} /> Rename List
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            setShowListMenu(null);
+                                                            setDeleteConfirm({ type: 'list', id: list.id, title: list.title });
+                                                        }}
+                                                        style={{
+                                                            width: '100%',
+                                                            padding: '0.625rem 0.875rem',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '0.5rem',
+                                                            fontSize: '0.875rem',
+                                                            color: '#ef4444',
+                                                            background: 'transparent',
+                                                            border: 'none',
+                                                            cursor: 'pointer',
+                                                            transition: 'background 0.15s'
+                                                        }}
+                                                        onMouseEnter={(e) => e.currentTarget.style.background = '#fef2f2'}
+                                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                                    >
+                                                        <Trash2 size={14} /> Delete List
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
 
                                     {/* Cards Area */}
@@ -406,10 +600,111 @@ export default function Board() {
                                                                     transition: 'box-shadow 0.15s',
                                                                     transform: snapshot.isDragging ? 'rotate(2deg)' : 'none',
                                                                     border: snapshot.isDragging ? '2px solid #667eea' : '1px solid #e5e7eb',
+                                                                    position: 'relative',
                                                                     ...provided.draggableProps.style
                                                                 }}
+                                                                className="card-item"
                                                             >
-                                                                {card.title}
+                                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                                                    <span style={{ flex: 1, paddingRight: '0.5rem' }}>{card.title}</span>
+                                                                    <div style={{ position: 'relative', flexShrink: 0 }}>
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setShowCardMenu(showCardMenu === card.id ? null : card.id);
+                                                                                setShowListMenu(null);
+                                                                            }}
+                                                                            style={{
+                                                                                color: '#9ca3af',
+                                                                                padding: '0.25rem',
+                                                                                borderRadius: '0.25rem',
+                                                                                transition: 'all 0.15s',
+                                                                                background: showCardMenu === card.id ? '#f3f4f6' : 'transparent',
+                                                                                opacity: showCardMenu === card.id ? 1 : 0.5
+                                                                            }}
+                                                                            className="card-menu-btn"
+                                                                            onMouseEnter={(e) => {
+                                                                                e.currentTarget.style.background = '#f3f4f6';
+                                                                                e.currentTarget.style.color = '#6b7280';
+                                                                                e.currentTarget.style.opacity = 1;
+                                                                            }}
+                                                                            onMouseLeave={(e) => {
+                                                                                if (showCardMenu !== card.id) {
+                                                                                    e.currentTarget.style.background = 'transparent';
+                                                                                    e.currentTarget.style.color = '#9ca3af';
+                                                                                    e.currentTarget.style.opacity = 0.5;
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            <MoreHorizontal size={14} />
+                                                                        </button>
+                                                                        {showCardMenu === card.id && (
+                                                                            <div
+                                                                                style={{
+                                                                                    position: 'absolute',
+                                                                                    top: '100%',
+                                                                                    right: 0,
+                                                                                    marginTop: '0.25rem',
+                                                                                    background: 'white',
+                                                                                    borderRadius: '0.5rem',
+                                                                                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15)',
+                                                                                    border: '1px solid #e5e7eb',
+                                                                                    minWidth: '130px',
+                                                                                    zIndex: 50,
+                                                                                    overflow: 'hidden'
+                                                                                }}
+                                                                                onClick={(e) => e.stopPropagation()}
+                                                                            >
+                                                                                <button
+                                                                                    onClick={() => {
+                                                                                        setShowCardMenu(null);
+                                                                                        setEditingCard({ id: card.id, title: card.title, listId: list.id });
+                                                                                    }}
+                                                                                    style={{
+                                                                                        width: '100%',
+                                                                                        padding: '0.5rem 0.75rem',
+                                                                                        display: 'flex',
+                                                                                        alignItems: 'center',
+                                                                                        gap: '0.5rem',
+                                                                                        fontSize: '0.875rem',
+                                                                                        color: '#374151',
+                                                                                        background: 'transparent',
+                                                                                        border: 'none',
+                                                                                        cursor: 'pointer',
+                                                                                        transition: 'background 0.15s'
+                                                                                    }}
+                                                                                    onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
+                                                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                                                                >
+                                                                                    <Edit2 size={14} /> Edit
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={() => {
+                                                                                        setShowCardMenu(null);
+                                                                                        setDeleteConfirm({ type: 'card', id: card.id, title: card.title });
+                                                                                    }}
+                                                                                    style={{
+                                                                                        width: '100%',
+                                                                                        padding: '0.5rem 0.75rem',
+                                                                                        display: 'flex',
+                                                                                        alignItems: 'center',
+                                                                                        gap: '0.5rem',
+                                                                                        fontSize: '0.875rem',
+                                                                                        color: '#ef4444',
+                                                                                        background: 'transparent',
+                                                                                        border: 'none',
+                                                                                        cursor: 'pointer',
+                                                                                        transition: 'background 0.15s'
+                                                                                    }}
+                                                                                    onMouseEnter={(e) => e.currentTarget.style.background = '#fef2f2'}
+                                                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                                                                >
+                                                                                    <Trash2 size={14} /> Delete
+                                                                                </button>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         )}
                                                     </Draggable>
@@ -666,10 +961,10 @@ export default function Board() {
                         <form onSubmit={inviteUser}>
                             <input
                                 autoFocus
-                                type="text"
-                                placeholder="Enter user ID"
-                                value={inviteUserId}
-                                onChange={(e) => setInviteUserId(e.target.value)}
+                                type="email"
+                                placeholder="Enter email address"
+                                value={inviteEmail}
+                                onChange={(e) => setInviteEmail(e.target.value)}
                                 style={{
                                     width: '100%',
                                     padding: '0.75rem',
@@ -719,6 +1014,197 @@ export default function Board() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Card Modal */}
+            {editingCard && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0, 0, 0, 0.5)',
+                    backdropFilter: 'blur(4px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1000
+                }} onClick={() => setEditingCard(null)}>
+                    <div style={{
+                        background: 'white',
+                        borderRadius: '0.75rem',
+                        padding: '1.5rem',
+                        width: '90%',
+                        maxWidth: '500px',
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
+                    }} onClick={(e) => e.stopPropagation()}>
+                        <h2 style={{
+                            fontSize: '1.25rem',
+                            fontWeight: 700,
+                            marginBottom: '1rem',
+                            color: '#111827'
+                        }}>Edit Card</h2>
+
+                        <textarea
+                            autoFocus
+                            value={editingCard.title}
+                            onChange={(e) => setEditingCard({ ...editingCard, title: e.target.value })}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    updateCard(editingCard.id, editingCard.title);
+                                }
+                                if (e.key === 'Escape') {
+                                    setEditingCard(null);
+                                }
+                            }}
+                            style={{
+                                width: '100%',
+                                padding: '0.75rem',
+                                borderRadius: '0.5rem',
+                                border: '2px solid #667eea',
+                                fontSize: '0.875rem',
+                                marginBottom: '1rem',
+                                outline: 'none',
+                                resize: 'vertical',
+                                minHeight: '100px',
+                                boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
+                            }}
+                        />
+
+                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                            <button
+                                onClick={() => setEditingCard(null)}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.375rem',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 600,
+                                    color: '#6b7280',
+                                    transition: 'all 0.15s'
+                                }}
+                                onMouseEnter={(e) => e.target.style.background = '#f3f4f6'}
+                                onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => updateCard(editingCard.id, editingCard.title)}
+                                style={{
+                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                    color: 'white',
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.375rem',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 600,
+                                    transition: 'all 0.15s'
+                                }}
+                                onMouseEnter={(e) => e.target.style.transform = 'translateY(-1px)'}
+                                onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+                            >
+                                Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {deleteConfirm && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0, 0, 0, 0.5)',
+                    backdropFilter: 'blur(4px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1000
+                }} onClick={() => setDeleteConfirm(null)}>
+                    <div style={{
+                        background: 'white',
+                        borderRadius: '0.75rem',
+                        padding: '1.5rem',
+                        width: '90%',
+                        maxWidth: '400px',
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
+                    }} onClick={(e) => e.stopPropagation()}>
+                        <div style={{
+                            width: '3rem',
+                            height: '3rem',
+                            borderRadius: '50%',
+                            background: '#fef2f2',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginBottom: '1rem'
+                        }}>
+                            <Trash2 size={24} style={{ color: '#ef4444' }} />
+                        </div>
+
+                        <h2 style={{
+                            fontSize: '1.25rem',
+                            fontWeight: 700,
+                            marginBottom: '0.5rem',
+                            color: '#111827'
+                        }}>Delete {deleteConfirm.type === 'card' ? 'Card' : 'List'}?</h2>
+
+                        <p style={{
+                            fontSize: '0.875rem',
+                            color: '#6b7280',
+                            marginBottom: '1.5rem',
+                            lineHeight: 1.5
+                        }}>
+                            Are you sure you want to delete "{deleteConfirm.title}"?
+                            {deleteConfirm.type === 'list' && ' This will also delete all cards in this list.'}
+                            {' '}This action cannot be undone.
+                        </p>
+
+                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                            <button
+                                onClick={() => setDeleteConfirm(null)}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.375rem',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 600,
+                                    color: '#6b7280',
+                                    transition: 'all 0.15s'
+                                }}
+                                onMouseEnter={(e) => e.target.style.background = '#f3f4f6'}
+                                onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    if (deleteConfirm.type === 'card') {
+                                        deleteCard(deleteConfirm.id);
+                                    } else {
+                                        deleteList(deleteConfirm.id);
+                                    }
+                                }}
+                                style={{
+                                    background: '#ef4444',
+                                    color: 'white',
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.375rem',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 600,
+                                    transition: 'all 0.15s'
+                                }}
+                                onMouseEnter={(e) => e.target.style.background = '#dc2626'}
+                                onMouseLeave={(e) => e.target.style.background = '#ef4444'}
+                            >
+                                Delete
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
