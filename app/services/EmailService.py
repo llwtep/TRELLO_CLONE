@@ -55,7 +55,7 @@ class EmailService:
 
                 <h2 style="margin-bottom:1rem; color:#333;">Account Verification</h2>
                 <p style="color:#555; font-size:1rem; line-height:1.5;">
-                  Thank you for registering with <strong>Coffee Shop</strong> 🎉 <br>
+                  Thank you for registering with <strong>llwtep's project</strong> 🎉 <br>
                   Please confirm your email address by clicking the button below:
                 </p>
                 <a href="{verify_url}" 
@@ -65,7 +65,7 @@ class EmailService:
                   Verify your Email
                 </a>
                 <p style="margin-top:2rem; font-size:0.9rem; color:#888;">
-                  If you did not sign up for Coffee shop, you can safely ignore this email.
+                  If you did not sign up for llwtep's project, you can safely ignore this email.
                 </p>
               </div>
             </div>

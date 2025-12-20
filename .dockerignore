@@ -1,0 +1,55 @@
+# ==============================================================================
+# Docker Ignore
+# ==============================================================================
+
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+ENV/
+.env
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Node (frontend handled in multi-stage)
+frontend/node_modules/
+frontend/.env*
+frontend/dist/
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.docker/
+
+# Docs
+*.md
+!README.md
+docs/
+
+# Misc
+.DS_Store
+Thumbs.db
+*.log
