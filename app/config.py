@@ -8,6 +8,8 @@ class Settings(BaseSettings):
         extra="ignore"
     )
     DATABASE_URL: str
+    DATABASE_URL_SYNC: str
+    DATABASE_URL_ASYNC: str
     EMAIL: str
     PASS: str
     JWT_SECRET_KEY: str
