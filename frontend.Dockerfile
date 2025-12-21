@@ -19,7 +19,7 @@ RUN npm ci --only=production=false
 COPY frontend/ .
 
 # Build arguments for environment configuration
-ARG VITE_API_URL
+ARG VITE_API_URL=/trello_app/api
 ENV VITE_API_URL=${VITE_API_URL}
 
 # Build the application
