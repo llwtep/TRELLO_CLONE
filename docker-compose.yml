@@ -42,7 +42,8 @@ services:
     container_name: llwtep_backend
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-llwtep_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-llwtep_db}
+      DATABASE_URL_ASYNC: postgresql+asyncpg://llwtep_user:${POSTGRES_PASSWORD}@postgres:5432/llwtep_db
+      DATABASE_URL_SYNC: postgresql://llwtep_user:${POSTGRES_PASSWORD}@postgres:5432/llwtep_db
       DB_HOST: postgres
       DB_PORT: 5432
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
